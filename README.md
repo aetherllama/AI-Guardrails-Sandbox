@@ -2,8 +2,6 @@
 
 A progressive web application (PWA) for exploring and testing AI safety mechanisms. This interactive sandbox demonstrates various guardrail implementations including content filtering, input validation, output sanitization, and financial compliance checks.
 
-![Home Screen](screenshots/home-screen.png)
-
 ## Features
 
 ### Content Filtering
@@ -37,48 +35,6 @@ A progressive web application (PWA) for exploring and testing AI safety mechanis
 - **Singapore Scam Detection** - Detects scams targeting Singapore residents
 - **NRIC/FIN Protection** - Redacts national identification numbers per PDPA
 - **SG Mobile Number Protection** - Protects phone numbers per PDPA
-
-## Screenshots
-
-### Home Screen
-The main landing page showing all guardrail categories with quick access to the playground.
-
-![Home Screen](screenshots/home-screen.png)
-
-### Playground View
-The interactive playground where you can test any input against multiple guardrail modes.
-
-![Playground](screenshots/playground.png)
-
-### Category View
-Detailed view of a specific guardrail category with available demo scenarios.
-
-![Category View](screenshots/category-view.png)
-
-### Scenario Test - Blocked
-Example of content being blocked by guardrails (e.g., harmful content detection).
-
-![Blocked Result](screenshots/scenario-blocked.png)
-
-### Scenario Test - Flagged
-Example of content being flagged for review (e.g., profanity detection with sanitized output).
-
-![Flagged Result](screenshots/scenario-flagged.png)
-
-### Scenario Test - Allowed
-Example of safe content passing all guardrail checks.
-
-![Allowed Result](screenshots/scenario-allowed.png)
-
-### PII Redaction
-Demonstration of automatic PII redaction including SSN, credit cards, and phone numbers.
-
-![PII Redaction](screenshots/pii-redaction.png)
-
-### Singapore Financial Guardrails
-Singapore-specific guardrails including NRIC redaction and MAS compliance.
-
-![Singapore Guardrails](screenshots/singapore-guardrails.png)
 
 ## Installation
 
