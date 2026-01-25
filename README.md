@@ -42,7 +42,7 @@ A progressive web application (PWA) for exploring and testing AI safety mechanis
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/aetherlark/AI-Guardrails-Sandbox.git
+   git clone https://github.com/aetherllama/AI-Guardrails-Sandbox.git
    cd AI-Guardrails-Sandbox
    ```
 
