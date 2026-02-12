@@ -1,5 +1,5 @@
 // Main Application Logic
-(function() {
+(function () {
     'use strict';
 
     // State
@@ -20,12 +20,12 @@
     }
 
     // View Navigation
-    window.showView = function(viewId) {
+    window.showView = function (viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
     };
 
-    window.goBackFromScenario = function() {
+    window.goBackFromScenario = function () {
         if (currentCategory) {
             showCategoryDetail(currentCategory.id);
         } else {
@@ -45,12 +45,12 @@
             card.onclick = () => showCategoryDetail(category.id);
 
             card.innerHTML = `
-                <div class="category-icon">${category.icon}</div>
+                <div class="category-icon">${escapeHtml(category.icon)}</div>
                 <div class="category-info">
-                    <h3>${category.name}</h3>
-                    <p>${category.description}</p>
+                    <h3>${escapeHtml(category.name)}</h3>
+                    <p>${escapeHtml(category.description)}</p>
                 </div>
-                <span class="category-badge">${category.scenarios.length}</span>
+                <span class="category-badge">${escapeHtml(String(category.scenarios.length))}</span>
             `;
 
             grid.appendChild(card);
@@ -58,7 +58,7 @@
     }
 
     // Show Category Detail
-    window.showCategoryDetail = function(categoryId) {
+    window.showCategoryDetail = function (categoryId) {
         currentCategory = CATEGORIES[categoryId];
         if (!currentCategory) return;
 
@@ -67,11 +67,11 @@
         // Render header card
         const headerCard = document.getElementById('category-header-card');
         headerCard.innerHTML = `
-            <div class="category-header-icon" style="background: ${hexToRgba(currentCategory.color, 0.15)}">
-                ${currentCategory.icon}
+            <div class="category-header-icon" style="background: ${escapeHtml(hexToRgba(currentCategory.color, 0.15))}">
+                ${escapeHtml(currentCategory.icon)}
             </div>
-            <h2>${currentCategory.name}</h2>
-            <p>${currentCategory.description}</p>
+            <h2>${escapeHtml(currentCategory.name)}</h2>
+            <p>${escapeHtml(currentCategory.description)}</p>
         `;
 
         // Render scenarios
@@ -84,8 +84,8 @@
             card.onclick = () => showScenarioDetail(scenario.id);
 
             card.innerHTML = `
-                <h4>${scenario.title}</h4>
-                <p>${scenario.description}</p>
+                <h4>${escapeHtml(scenario.title)}</h4>
+                <p>${escapeHtml(scenario.description)}</p>
                 <div class="scenario-example">${escapeHtml(scenario.exampleInput)}</div>
             `;
 
@@ -96,7 +96,7 @@
     };
 
     // Show Scenario Detail
-    window.showScenarioDetail = function(scenarioId) {
+    window.showScenarioDetail = function (scenarioId) {
         // Find scenario across all categories
         for (const category of Object.values(CATEGORIES)) {
             const scenario = category.scenarios.find(s => s.id === scenarioId);
@@ -114,10 +114,10 @@
         // Render scenario info
         const info = document.getElementById('scenario-info');
         info.innerHTML = `
-            <span class="scenario-badge" style="background: ${hexToRgba(currentCategory.color, 0.15)}; color: ${currentCategory.color}">
-                ${currentCategory.icon} ${currentCategory.name}
+            <span class="scenario-badge" style="background: ${escapeHtml(hexToRgba(currentCategory.color, 0.15))}; color: ${escapeHtml(currentCategory.color)}">
+                ${escapeHtml(currentCategory.icon)} ${escapeHtml(currentCategory.name)}
             </span>
-            <p>${currentScenario.description}</p>
+            <p>${escapeHtml(currentScenario.description)}</p>
         `;
 
         // Set input
@@ -126,13 +126,13 @@
         updateCharCount('scenario');
 
         // Clear result
-        document.getElementById('scenario-result').innerHTML = '';
+        document.getElementById('scenario-result').textContent = '';
 
         showView('scenario-view');
     };
 
     // Reset Scenario Input
-    window.resetScenarioInput = function() {
+    window.resetScenarioInput = function () {
         if (currentScenario) {
             document.getElementById('scenario-input').value = currentScenario.exampleInput;
             updateCharCount('scenario');
@@ -140,7 +140,7 @@
     };
 
     // Run Scenario Check
-    window.runScenarioCheck = async function() {
+    window.runScenarioCheck = async function () {
         const input = document.getElementById('scenario-input').value.trim();
         if (!input || !currentScenario) return;
 
@@ -181,8 +181,8 @@
             };
 
             btn.innerHTML = `
-                <span class="example-icon">${example.icon}</span>
-                <span>${example.label}</span>
+                <span class="example-icon">${escapeHtml(example.icon)}</span>
+                <span>${escapeHtml(example.label)}</span>
             `;
 
             grid.appendChild(btn);
@@ -190,7 +190,7 @@
     }
 
     // Run Playground Check
-    window.runPlaygroundCheck = async function() {
+    window.runPlaygroundCheck = async function () {
         const input = document.getElementById('playground-input').value.trim();
         if (!input) return;
 
@@ -247,10 +247,10 @@
             const timeAgo = getTimeAgo(entry.timestamp);
 
             item.innerHTML = `
-                <div class="history-status ${entry.result.status}"></div>
+                <div class="history-status ${escapeHtml(entry.result.status)}"></div>
                 <div class="history-info">
                     <div class="history-text">${escapeHtml(entry.input)}</div>
-                    <div class="history-meta">${entry.mode.toUpperCase()} • ${timeAgo}</div>
+                    <div class="history-meta">${escapeHtml(entry.mode.toUpperCase())} • ${escapeHtml(timeAgo)}</div>
                 </div>
             `;
 
@@ -296,14 +296,14 @@
 
         let html = `
             <div class="result-card">
-                <div class="result-badge ${result.status}">
+                <div class="result-badge ${escapeHtml(result.status)}">
                     ${statusIcons[result.status]}
-                    ${statusLabels[result.status]}
+                    ${escapeHtml(statusLabels[result.status])}
                 </div>
 
                 <div class="result-section">
                     <h4>Analysis</h4>
-                    <p>${result.reason}</p>
+                    <p>${escapeHtml(result.reason)}</p>
                 </div>
         `;
 
@@ -333,7 +333,7 @@
                     <div class="confidence-bar">
                         <div class="confidence-fill" style="width: ${result.confidence * 100}%"></div>
                     </div>
-                    <div class="confidence-text">${Math.round(result.confidence * 100)}% confidence</div>
+                    <div class="confidence-text">${escapeHtml(String(Math.round(result.confidence * 100)))}% confidence</div>
                 </div>
 
                 <button class="clear-result-btn" onclick="clearResult('${containerId}')">Clear Result</button>
@@ -344,8 +344,8 @@
     }
 
     // Clear Result
-    window.clearResult = function(containerId) {
-        document.getElementById(containerId).innerHTML = '';
+    window.clearResult = function (containerId) {
+        document.getElementById(containerId).textContent = '';
     };
 
     // Setup Input Listeners
@@ -388,9 +388,15 @@
     }
 
     function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        if (typeof text !== 'string') return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function (m) { return map[m]; });
     }
 
     function hexToRgba(hex, alpha) {
