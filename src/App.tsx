@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Shield, Activity, Lock, FlaskConical } from 'lucide-react';
+import { Shield, Activity, Lock, FlaskConical, Zap, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { GovernanceValidator } from './core/validator';
 import { STANDARD_MANDATES } from './core/mandates';
 import { SINGAPORE_MANDATES, CONTENT_SAFETY_MANDATES } from './core/customMandates';
@@ -7,11 +7,19 @@ import { DEMO_SCENARIOS } from './core/scenarios';
 import type { DemoScenario } from './core/scenarios';
 import type { GovernanceEnvelope, ValidationResult } from './core/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  GUARDRAILS,
+  GUARDRAIL_SCENARIOS,
+  GUARDRAIL_CATEGORY_LABELS,
+  runGuardrails,
+  type GuardrailEvaluation,
+  type GuardrailResult,
+} from './core/guardrails';
 
 const ALL_MANDATES = { ...STANDARD_MANDATES, ...SINGAPORE_MANDATES, ...CONTENT_SAFETY_MANDATES };
 
 function App() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'interactive' | 'configure'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'interactive' | 'configure' | 'guardrails'>('dashboard');
 
   const [activeMandates, setActiveMandates] = useState({
     standard: true,
@@ -88,6 +96,16 @@ function App() {
               >
                 Governance Mandates
               </button>
+              <button
+                onClick={() => setActiveView('guardrails')}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${activeView === 'guardrails'
+                  ? 'bg-violet-700 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Guardrails
+              </button>
             </div>
           </div>
         </div>
@@ -122,6 +140,7 @@ function App() {
                 setMandateParams={setMandateParams}
               />
             )}
+            {activeView === 'guardrails' && <GuardrailsView />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -723,4 +742,345 @@ function InteractiveView({
     </div>
   );
 }
+
+// ─── Guardrails View ──────────────────────────────────────────────────────────
+
+const RESULT_CONFIG: Record<GuardrailResult, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  pass: {
+    label: 'PASS',
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50 border-emerald-200',
+    icon: <CheckCircle className="w-4 h-4 text-emerald-600" />,
+  },
+  flag: {
+    label: 'FLAGGED',
+    color: 'text-amber-700',
+    bg: 'bg-amber-50 border-amber-200',
+    icon: <AlertTriangle className="w-4 h-4 text-amber-600" />,
+  },
+  block: {
+    label: 'BLOCKED',
+    color: 'text-red-700',
+    bg: 'bg-red-50 border-red-200',
+    icon: <XCircle className="w-4 h-4 text-red-600" />,
+  },
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  prompt_injection: 'bg-red-100 text-red-700 border-red-200',
+  intent_drift: 'bg-orange-100 text-orange-700 border-orange-200',
+  output_filtering: 'bg-purple-100 text-purple-700 border-purple-200',
+  jailbreak: 'bg-red-100 text-red-800 border-red-300',
+  pii_leakage: 'bg-pink-100 text-pink-700 border-pink-200',
+  social_engineering: 'bg-amber-100 text-amber-700 border-amber-200',
+  scope_creep: 'bg-blue-100 text-blue-700 border-blue-200',
+};
+
+function ConfidenceBar({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  const color = value > 0.9 ? 'bg-emerald-500' : value > 0.75 ? 'bg-amber-500' : 'bg-red-500';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[10px] text-slate-500 font-mono w-8 text-right">{pct}%</span>
+    </div>
+  );
+}
+
+function GuardrailCard({ evaluation, isExpanded, onToggle }: {
+  evaluation: GuardrailEvaluation;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const { guardrail, result, confidence, explanation, flaggedText } = evaluation;
+  const cfg = RESULT_CONFIG[result];
+  return (
+    <div className={`rounded-xl border ${cfg.bg} overflow-hidden transition-all`}>
+      <button
+        onClick={onToggle}
+        className="w-full text-left p-4 flex items-start gap-3"
+      >
+        <div className="mt-0.5 flex-shrink-0">{cfg.icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="font-semibold text-sm text-slate-900">{guardrail.name}</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${CATEGORY_COLORS[guardrail.category]}`}>
+                {GUARDRAIL_CATEGORY_LABELS[guardrail.category]}
+              </span>
+              <span className={`text-[10px] font-black tracking-wider ${cfg.color}`}>{cfg.label}</span>
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+            </div>
+          </div>
+          <ConfidenceBar value={confidence} />
+          {flaggedText && (
+            <div className="mt-2 font-mono text-[10px] bg-red-900/10 border border-red-200 text-red-800 px-2 py-1 rounded truncate">
+              ⚠ &ldquo;{flaggedText}&rdquo;
+            </div>
+          )}
+        </div>
+      </button>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3 border-t border-slate-200/60 pt-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Evaluation</p>
+                <p className="text-sm text-slate-700">{explanation}</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-white/70 rounded-lg p-3 border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Threat Model</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">{guardrail.threat}</p>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3 border border-slate-200">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">vs. Mandate</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">{guardrail.vsMandate}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function GuardrailsView() {
+  const [reasoning, setReasoning] = useState('');
+  const [context, setContext] = useState({ amount: 500, category: 'Software Subscription' });
+  const [evaluations, setEvaluations] = useState<GuardrailEvaluation[] | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'demo' | 'reference'>('demo');
+
+  const loadScenario = (s: typeof GUARDRAIL_SCENARIOS[0]) => {
+    setReasoning(s.reasoning);
+    setContext(s.context);
+    setEvaluations(null);
+  };
+
+  const runEvaluation = () => {
+    const results = runGuardrails(reasoning, context as Record<string, unknown>);
+    setEvaluations(results);
+    setExpandedId(results.find(r => r.result !== 'pass')?.guardrail.id ?? null);
+  };
+
+  const summary = evaluations ? {
+    blocked: evaluations.filter(e => e.result === 'block').length,
+    flagged: evaluations.filter(e => e.result === 'flag').length,
+    passed: evaluations.filter(e => e.result === 'pass').length,
+  } : null;
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-violet-900 to-indigo-900 rounded-2xl p-6 text-white">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white/10 rounded-xl">
+            <Zap className="w-7 h-7 text-violet-300" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-2xl font-black mb-1">LLM Guardrails Playground</h2>
+            <p className="text-violet-200 text-sm leading-relaxed max-w-3xl">
+              Guardrails are <strong className="text-white">probabilistic</strong> safety checks that run on an agent&apos;s reasoning and output
+              <em> before</em> a transaction is proposed. Unlike deterministic mandates (which enforce hard rules on transaction fields),
+              guardrails detect threats in natural language — prompt injection, jailbreaks, PII leakage, and social engineering.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {([
+                { label: 'Mandates', desc: 'Deterministic · Code-enforced · Same input = same output', color: 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200' },
+                { label: 'Guardrails', desc: 'Probabilistic · LLM-layer · Pattern-matched on language', color: 'bg-violet-500/20 border-violet-400/30 text-violet-200' },
+              ] as const).map(({ label, desc, color }) => (
+                <div key={label} className={`px-3 py-2 rounded-lg border text-xs ${color}`}>
+                  <span className="font-bold">{label}:</span> {desc}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab('demo')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'demo' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+        >
+          Interactive Demo
+        </button>
+        <button
+          onClick={() => setActiveTab('reference')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'reference' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+        >
+          Guardrail Reference
+        </button>
+      </div>
+
+      {activeTab === 'demo' && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* LEFT: Input */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Scenarios */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900 mb-3 text-sm">Attack Scenarios</h3>
+              <div className="space-y-2">
+                {GUARDRAIL_SCENARIOS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => loadScenario(s)}
+                    className="w-full text-left p-3 rounded-lg border border-slate-100 hover:border-violet-200 hover:bg-violet-50 transition-all group"
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold text-xs text-slate-900 group-hover:text-violet-700">{s.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${s.expectedOutcome === 'pass' ? 'bg-emerald-100 text-emerald-700' :
+                          s.expectedOutcome === 'flag' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                        }`}>{s.expectedOutcome.toUpperCase()}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">{s.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Input */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900 mb-3 text-sm">Agent Reasoning Input</h3>
+              <textarea
+                value={reasoning}
+                onChange={(e) => setReasoning(e.target.value)}
+                placeholder="Enter agent reasoning text to evaluate against all guardrails..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 resize-none"
+                rows={5}
+              />
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Amount ($)</label>
+                  <input
+                    type="number"
+                    value={context.amount}
+                    onChange={(e) => setContext({ ...context, amount: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                  <input
+                    type="text"
+                    value={context.category}
+                    onChange={(e) => setContext({ ...context, category: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={runEvaluation}
+                disabled={!reasoning.trim()}
+                className="w-full mt-4 bg-violet-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-violet-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                Run Guardrail Evaluation
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT: Results */}
+          <div className="lg:col-span-3 space-y-4">
+            {summary && (
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Blocked', count: summary.blocked, color: 'bg-red-50 border-red-200 text-red-700' },
+                  { label: 'Flagged', count: summary.flagged, color: 'bg-amber-50 border-amber-200 text-amber-700' },
+                  { label: 'Passed', count: summary.passed, color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+                ].map(({ label, count, color }) => (
+                  <div key={label} className={`rounded-xl border p-4 text-center ${color}`}>
+                    <div className="text-3xl font-black">{count}</div>
+                    <div className="text-xs font-bold uppercase tracking-wider mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {evaluations ? (
+              <div className="space-y-2">
+                {evaluations
+                  .sort((a, b) => {
+                    const order = { block: 0, flag: 1, pass: 2 };
+                    return order[a.result] - order[b.result];
+                  })
+                  .map((ev) => (
+                    <GuardrailCard
+                      key={ev.guardrail.id}
+                      evaluation={ev}
+                      isExpanded={expandedId === ev.guardrail.id}
+                      onToggle={() => setExpandedId(expandedId === ev.guardrail.id ? null : ev.guardrail.id)}
+                    />
+                  ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                <Zap className="w-12 h-12 text-violet-200 mx-auto mb-4" />
+                <p className="text-slate-500 text-sm">Select a scenario or enter reasoning text, then run the evaluation to see guardrail results.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'reference' && (
+        <div className="space-y-4">
+          <p className="text-slate-600 text-sm">
+            All {GUARDRAILS.length} active guardrails in this sandbox. Each runs as a heuristic check on the agent&apos;s reasoning text before a transaction envelope is submitted to the mandate validator.
+          </p>
+          {GUARDRAILS.map((g) => (
+            <div key={g.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-slate-900">{g.name}</h3>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${CATEGORY_COLORS[g.category]}`}>
+                      {GUARDRAIL_CATEGORY_LABELS[g.category]}
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono text-slate-400">{g.id}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-bold flex-shrink-0 ${g.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                    g.severity === 'high' ? 'bg-orange-100 text-orange-700' :
+                      g.severity === 'medium' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                  }`}>{g.severity.toUpperCase()}</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">{g.description}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Threat Model</p>
+                  <p className="text-xs text-slate-600 leading-relaxed">{g.threat}</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                  <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2">⚠ Example Trigger</p>
+                  <p className="text-xs text-red-700 leading-relaxed italic">&ldquo;{g.exampleTrigger}&rdquo;</p>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-2">✓ Safe Example</p>
+                  <p className="text-xs text-emerald-700 leading-relaxed italic">&ldquo;{g.exampleSafe}&rdquo;</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default App;
