@@ -187,8 +187,21 @@ The main testing interface. Select a pre-built scenario or craft a custom transa
 - The risk disclosure for that mandate
 - The agent's reasoning trace
 
-### ⚙️ Governance Mandates
-Configure the active mandate stack. Toggle mandate groups on/off (Standard, Singapore, Content Safety) and adjust parameters. Changes take effect immediately on the next validation run.
+### ⚡ Guardrails
+The probabilistic, LLM-layer safety playground. Distinct from the mandate validator, guardrails evaluate the agent's *reasoning text* for threats before a transaction is even proposed.
+
+**Interactive Demo tab**: Select from 7 pre-built attack scenarios (prompt injection, jailbreak, CEO fraud, PII leakage, intent drift, scope creep) or enter custom reasoning text. Run all 6 guardrails simultaneously and see per-guardrail results with confidence scores, flagged text, and expandable threat model explanations.
+
+**Guardrail Reference tab**: Full documentation of all 6 guardrail types — threat model, example trigger, safe example, and how each differs from a mandate.
+
+| Guardrail | Category | Severity |
+|-----------|----------|----------|
+| Prompt Injection Detection | `prompt_injection` | Critical |
+| Intent Drift Monitor | `intent_drift` | High |
+| Output Filtering (PII & Secrets) | `output_filtering` | High |
+| Jailbreak & Role-Play Shield | `jailbreak` | Critical |
+| Social Engineering Detector | `social_engineering` | High |
+| Scope Creep Monitor | `scope_creep` | Medium |
 
 ---
 
