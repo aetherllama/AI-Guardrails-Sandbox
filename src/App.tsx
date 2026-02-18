@@ -11,7 +11,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 const ALL_MANDATES = { ...STANDARD_MANDATES, ...SINGAPORE_MANDATES, ...CONTENT_SAFETY_MANDATES };
 
 function App() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'interactive'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'interactive' | 'configure'>('dashboard');
+
+  const [activeMandates, setActiveMandates] = useState({
+    standard: true,
+    singapore: true,
+    contentSafety: true
+  });
+
+  const [mandateParams, setMandateParams] = useState({
+    spendingLimit: 1000,
+    blockLimit: 5000,
+    velocityLimit: 10,
+    blockedCategories: ['Ungoverned Gambling', 'High-Risk Investment']
+  });
+
+  const [envelope, setEnvelope] = useState<GovernanceEnvelope>({
+    transaction: {
+      amount: 500,
+      destination: '0x123...abc',
+      merchantName: 'Trusted Vendor Inc',
+      category: 'Software Subscription',
+      timestamp: Date.now(),
+      paymentMethod: 'Credit Card'
+    },
+    reasoning: 'Monthly subscription renewal',
+    context: {
+      isNewMerchant: false,
+      historyDepth: 12,
+      riskScore: 0.1
+    }
+  });
+
+  const [result, setResult] = useState<ValidationResult | null>(null);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -47,6 +79,15 @@ function App() {
               >
                 Interactive Playground
               </button>
+              <button
+                onClick={() => setActiveView('configure')}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${activeView === 'configure'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+              >
+                Governance Mandates
+              </button>
             </div>
           </div>
         </div>
@@ -63,7 +104,24 @@ function App() {
             transition={{ duration: 0.2 }}
           >
             {activeView === 'dashboard' && <DashboardView />}
-            {activeView === 'interactive' && <InteractiveView />}
+            {activeView === 'interactive' && (
+              <InteractiveView
+                activeMandates={activeMandates}
+                mandateParams={mandateParams}
+                envelope={envelope}
+                setEnvelope={setEnvelope}
+                result={result}
+                setResult={setResult}
+              />
+            )}
+            {activeView === 'configure' && (
+              <ConfigureView
+                activeMandates={activeMandates}
+                setActiveMandates={setActiveMandates}
+                mandateParams={mandateParams}
+                setMandateParams={setMandateParams}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -149,28 +207,213 @@ function DashboardView() {
   );
 }
 
-function InteractiveView() {
-  const [envelope, setEnvelope] = useState<GovernanceEnvelope>({
-    transaction: {
-      amount: 500,
-      destination: '0x123...abc',
-      merchantName: 'Trusted Vendor Inc',
-      category: 'Software Subscription',
-      timestamp: Date.now(),
-      paymentMethod: 'Credit Card'
-    },
-    reasoning: 'Monthly subscription renewal',
-    context: {
-      isNewMerchant: false,
-      historyDepth: 12,
-      riskScore: 0.1
-    }
-  });
+function ConfigureView({
+  activeMandates,
+  setActiveMandates,
+  mandateParams,
+  setMandateParams
+}: {
+  activeMandates: any,
+  setActiveMandates: any,
+  mandateParams: any,
+  setMandateParams: any
+}) {
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+        <h2 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <Lock className="w-6 h-6 text-emerald-600" />
+          Governance Mandates Configuration
+        </h2>
+        <p className="text-slate-600 mb-8">
+          Define the active guardrails and parameters that the FAGF-FS validator enforces across the ecosystem.
+        </p>
 
-  const [result, setResult] = useState<ValidationResult | null>(null);
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          {/* Column 1: Active Switches */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Enabled Mandate Sets</h3>
+            <div className="space-y-4">
+              <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={activeMandates.standard}
+                  onChange={(e) => setActiveMandates({ ...activeMandates, standard: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                />
+                <div>
+                  <span className="block font-bold text-slate-900">Standard Mandates</span>
+                  <p className="text-sm text-slate-500 mt-1">Foundational financial controls: spending limits, horizontal velocity, and merchant authorization.</p>
+                </div>
+              </label>
 
+              <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={activeMandates.singapore}
+                  onChange={(e) => setActiveMandates({ ...activeMandates, singapore: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                />
+                <div>
+                  <span className="block font-bold text-slate-900">Singapore MAS Compliance</span>
+                  <p className="text-sm text-slate-500 mt-1">Region-specific mandates including MAS licensing checks and NRIC/FIN PII detection.</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={activeMandates.contentSafety}
+                  onChange={(e) => setActiveMandates({ ...activeMandates, contentSafety: e.target.checked })}
+                  className="mt-1 w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                />
+                <div>
+                  <span className="block font-bold text-slate-900">Content Safety & Intent</span>
+                  <p className="text-sm text-slate-500 mt-1">Filters for profanity, scam keywords, and consistency checks on transaction reasoning.</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Column 2: Parameters */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Dynamic Parameters</h3>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Autonomous Approval Threshold ($)
+                </label>
+                <input
+                  type="number"
+                  value={mandateParams.spendingLimit}
+                  onChange={(e) => setMandateParams({ ...mandateParams, spendingLimit: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-2">Transactions above this amount require human intervention.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Hard Block Threshold ($)
+                </label>
+                <input
+                  type="number"
+                  value={mandateParams.blockLimit}
+                  onChange={(e) => setMandateParams({ ...mandateParams, blockLimit: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-2">Maximum absolute limit; transactions above this are rejected.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Velocity Limit (TX/Hr)
+                </label>
+                <input
+                  type="number"
+                  value={mandateParams.velocityLimit}
+                  onChange={(e) => setMandateParams({ ...mandateParams, velocityLimit: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-2">Cumulative transaction count allowed per hour per agent.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Blocked Merchant Categories</label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  {['Gambling', 'High-Risk Investment', 'Cryptocurrency', 'Adult Content'].map((cat) => (
+                    <label key={cat} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={mandateParams.blockedCategories.includes(cat)}
+                        onChange={(e) => {
+                          const newCategories = e.target.checked
+                            ? [...mandateParams.blockedCategories, cat]
+                            : mandateParams.blockedCategories.filter((c: string) => c !== cat);
+                          setMandateParams({ ...mandateParams, blockedCategories: newCategories });
+                        }}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-xs font-medium text-slate-700">{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setMandateParams({
+                  spendingLimit: 1000,
+                  blockLimit: 5000,
+                  velocityLimit: 10,
+                  blockedCategories: ['Gambling', 'High-Risk Investment']
+                });
+              }}
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm transition-all"
+            >
+              Reset Configuration to Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InteractiveView({
+  activeMandates,
+  mandateParams,
+  envelope,
+  setEnvelope,
+  result,
+  setResult
+}: {
+  activeMandates: any,
+  mandateParams: any,
+  envelope: GovernanceEnvelope,
+  setEnvelope: (e: GovernanceEnvelope) => void,
+  result: ValidationResult | null,
+  setResult: (r: ValidationResult | null) => void
+}) {
   const handleRunValidation = () => {
-    const validationResult = GovernanceValidator.validate(envelope, ALL_MANDATES as any, []);
+    let mandates: any = {};
+
+    if (activeMandates.standard) {
+      mandates = {
+        ...STANDARD_MANDATES,
+        confirmationThreshold: {
+          ...STANDARD_MANDATES.confirmationThreshold,
+          parameter: mandateParams.spendingLimit,
+          description: `Transactions over $${mandateParams.spendingLimit} require confirmation.`
+        },
+        dailyAggregateLimit: {
+          ...STANDARD_MANDATES.dailyAggregateLimit,
+          parameter: mandateParams.blockLimit,
+          description: `Daily spending limit (used as hard block) of $${mandateParams.blockLimit}.`
+        },
+        rateLimitPerHour: {
+          ...STANDARD_MANDATES.rateLimitPerHour,
+          parameter: mandateParams.velocityLimit,
+          description: `Maximum ${mandateParams.velocityLimit} transactions per hour.`
+        },
+        blockedCategories: {
+          ...STANDARD_MANDATES.blockedCategories,
+          parameter: mandateParams.blockedCategories,
+          description: `Restricted categories: ${mandateParams.blockedCategories.join(', ')}`
+        }
+      };
+    }
+
+    if (activeMandates.singapore) {
+      mandates = { ...mandates, ...SINGAPORE_MANDATES };
+    }
+    if (activeMandates.contentSafety) {
+      mandates = { ...mandates, ...CONTENT_SAFETY_MANDATES };
+    }
+
+    const validationResult = GovernanceValidator.validate(envelope, mandates, []);
     setResult(validationResult);
   };
 
@@ -345,7 +588,7 @@ function InteractiveView() {
           </p>
 
           <div className="space-y-4">
-            {/* Layer 1: Envelope - NOW DYNAMIC */}
+            {/* Layer 1: Envelope */}
             <div className="bg-white p-4 rounded-xl border-2 border-emerald-200">
               <div className="flex items-center gap-2 mb-3 text-emerald-600">
                 <FlaskConical className="w-5 h-5" />
@@ -384,45 +627,54 @@ function InteractiveView() {
               <div className="text-slate-400 text-2xl">↓</div>
             </div>
 
-            {/* Layer 2: Mandate Stack - NOW SHOWS TRIGGERED MANDATES */}
+            {/* Layer 2: Mandate Stack */}
             <div className="bg-white p-4 rounded-xl border-2 border-blue-200">
               <div className="flex items-center gap-2 mb-3 text-blue-600">
                 <Lock className="w-5 h-5" />
                 <h3 className="font-bold uppercase tracking-wider text-xs">Layer 2: Mandate Stack</h3>
               </div>
               <div className="space-y-2">
-                <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('fagf-cat-01')
-                    ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-400'
-                    : 'bg-blue-50 border-blue-100 text-blue-800'
+                <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('fagf-spend-02')
+                  ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-400'
+                  : 'bg-blue-50 border-blue-100 text-blue-800'
                   }`}>
-                  1. Categorical Blocklist (Enforced)
+                  1. Hard Block Threshold (Enforced)
+                  {result?.triggeredMandates.includes('fagf-spend-02') && (
+                    <span className="ml-2 text-[8px] px-1 py-0.5 bg-red-200 rounded">⚠ TRIGGERED</span>
+                  )}
+                </div>
+                <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('fagf-cat-01')
+                  ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-400'
+                  : 'bg-blue-50 border-blue-100 text-blue-800'
+                  }`}>
+                  2. Categorical Blocklist (Enforced)
                   {result?.triggeredMandates.includes('fagf-cat-01') && (
                     <span className="ml-2 text-[8px] px-1 py-0.5 bg-red-200 rounded">⚠ TRIGGERED</span>
                   )}
                 </div>
                 <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('fagf-spend-01')
-                    ? 'bg-amber-100 border-amber-300 text-amber-800 ring-2 ring-amber-400'
-                    : 'bg-blue-50 border-blue-100 text-blue-800'
+                  ? 'bg-amber-100 border-amber-300 text-amber-800 ring-2 ring-amber-400'
+                  : 'bg-blue-50 border-blue-100 text-blue-800'
                   }`}>
-                  2. Spending Limit Mandate (HITL)
+                  3. Spending Limit Mandate (HITL)
                   {result?.triggeredMandates.includes('fagf-spend-01') && (
                     <span className="ml-2 text-[8px] px-1 py-0.5 bg-amber-200 rounded">⚠ TRIGGERED</span>
                   )}
                 </div>
                 <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('fagf-velocity-01')
-                    ? 'bg-amber-100 border-amber-300 text-amber-800 ring-2 ring-amber-400'
-                    : 'bg-blue-50 border-blue-100 text-blue-800'
+                  ? 'bg-amber-100 border-amber-300 text-amber-800 ring-2 ring-amber-400'
+                  : 'bg-blue-50 border-blue-100 text-blue-800'
                   }`}>
-                  3. Velocity Rate Limiting (Log)
+                  4. Velocity Rate Limiting (Log)
                   {result?.triggeredMandates.includes('fagf-velocity-01') && (
                     <span className="ml-2 text-[8px] px-1 py-0.5 bg-amber-200 rounded">⚠ TRIGGERED</span>
                   )}
                 </div>
                 <div className={`p-2 border rounded text-[10px] font-medium transition-all ${result?.triggeredMandates.includes('ext-sg-mas-01') || result?.triggeredMandates.includes('ext-sg-nric-01') || result?.triggeredMandates.includes('reasoning-safety-01')
-                    ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-400'
-                    : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                  ? 'bg-red-100 border-red-300 text-red-800 ring-2 ring-red-400'
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-800'
                   }`}>
-                  4. Custom Mandates (MAS/PII/Safety)
+                  5. Custom Mandates (MAS/PII/Safety)
                   {(result?.triggeredMandates.includes('ext-sg-mas-01') || result?.triggeredMandates.includes('ext-sg-nric-01') || result?.triggeredMandates.includes('reasoning-safety-01')) && (
                     <span className="ml-2 text-[8px] px-1 py-0.5 bg-red-200 rounded">⚠ TRIGGERED</span>
                   )}
@@ -430,11 +682,6 @@ function InteractiveView() {
               </div>
               <p className="mt-3 text-xs text-slate-500">
                 A set of deterministic rules (Mandates) mapping regulatory/safety requirements.
-                {result && (
-                  <span className="block mt-1 font-medium text-slate-700">
-                    ✓ Checked {result.triggeredMandates.length > 0 ? result.triggeredMandates.length : 'all'} mandate{result.triggeredMandates.length !== 1 ? 's' : ''}
-                  </span>
-                )}
               </p>
             </div>
 
@@ -443,7 +690,7 @@ function InteractiveView() {
               <div className="text-slate-400 text-2xl">↓</div>
             </div>
 
-            {/* Layer 3: Validator - NOW SHOWS DECISION */}
+            {/* Layer 3: Validator */}
             <div className={`p-4 rounded-xl shadow-lg text-white transition-all ${result ? (result.allowed ? 'bg-gradient-to-br from-emerald-600 to-emerald-700' : 'bg-gradient-to-br from-red-600 to-red-700') : 'bg-slate-900'
               }`}>
               <div className="flex items-center gap-2 mb-3 text-emerald-400">
@@ -457,30 +704,18 @@ function InteractiveView() {
                     <div className="text-[10px] text-slate-400 text-center uppercase tracking-widest leading-loose">
                       Deterministic Execution Loop
                     </div>
-                    <div className="w-full h-px bg-white/10 my-3" />
-                    <div className="text-center text-sm font-mono text-emerald-300">
-                      RESULT: APPROVED | BLOCKED | HITL
-                    </div>
                   </>
                 ) : (
                   <>
-                    <div className={`text-center font-bold text-4xl mb-2 ${result.allowed ? 'text-white' : 'text-white'
-                      }`}>
+                    <div className="text-center font-bold text-4xl mb-2 text-white">
                       {result.allowed ? '✓ APPROVED' : '✗ BLOCKED'}
                     </div>
-                    <div className="text-[10px] text-white/80 text-center uppercase tracking-widest leading-loose">
-                      {result.requiresApproval ? 'Human-in-the-Loop Required' : result.allowed ? 'Autonomous Execution' : 'Hard Block'}
-                    </div>
-                    <div className="w-full h-px bg-white/10 my-3" />
-                    <div className="text-center text-xs text-white/90 leading-relaxed">
+                    <div className="text-center text-xs text-white/90 leading-relaxed line-clamp-2">
                       {result.reason}
                     </div>
                   </>
                 )}
               </div>
-              <p className="mt-3 text-xs text-slate-400">
-                The core engine that performs the final Tiered Validation Logic (TVL).
-              </p>
             </div>
           </div>
         </div>
@@ -488,5 +723,4 @@ function InteractiveView() {
     </div>
   );
 }
-
 export default App;

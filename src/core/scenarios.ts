@@ -85,7 +85,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
                 amount: 1000,
                 destination: 'CryptoExchange-SG',
                 merchantName: 'Binance SG',
-                category: 'crypto-trading',
+                category: 'Ungoverned Gambling',
                 timestamp: Date.now(),
                 paymentMethod: 'Corporate Account'
             },

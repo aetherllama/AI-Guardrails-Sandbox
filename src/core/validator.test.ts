@@ -30,10 +30,10 @@ describe('GovernanceValidator', () => {
         expect(result.requiresApproval).toBe(false);
     });
 
-    it('should block restricted categories (Gambling)', () => {
+    it('should block restricted categories (Ungoverned Gambling)', () => {
         const envelope = {
             ...baseEnvelope,
-            transaction: { ...baseEnvelope.transaction, category: 'Gambling' }
+            transaction: { ...baseEnvelope.transaction, category: 'Ungoverned Gambling' }
         };
         const result = GovernanceValidator.validate(envelope, ALL_MANDATES as any, []);
         expect(result.allowed).toBe(false);
@@ -43,7 +43,7 @@ describe('GovernanceValidator', () => {
     it('should require approval for large amounts', () => {
         const envelope = {
             ...baseEnvelope,
-            transaction: { ...baseEnvelope.transaction, amount: 50000 }
+            transaction: { ...baseEnvelope.transaction, amount: 2500 }
         };
         const result = GovernanceValidator.validate(envelope, ALL_MANDATES as any, []);
         expect(result.allowed).toBe(false);

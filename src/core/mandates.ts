@@ -53,7 +53,7 @@ export const STANDARD_MANDATES: FinancialMandates = {
     blockedCategories: {
         id: 'fagf-cat-01',
         category: 'category_restriction',
-        parameter: ['Gambling', 'High-Risk Investment', 'Adult Entertainment'],
+        parameter: ['Ungoverned Gambling', 'High-Risk Investment', 'Adult Entertainment'],
         enforcement: 'block',
         severity: 'high',
         riskDisclosure: 'Ensures compliance with corporate/regulatory usage policies.',

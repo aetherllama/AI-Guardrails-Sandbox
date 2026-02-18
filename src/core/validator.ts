@@ -18,21 +18,21 @@ export class GovernanceValidator {
         const triggeredMandates: string[] = [];
 
         // 1. Categorical Blocklist (Block-Before-Commit)
-        // Risk: Regulatory Non-Compliance / High-Exposure categories.
-        if (mandates.blockedCategories.parameter.includes(transaction.category)) {
-            return {
-                allowed: false,
-                requiresApproval: false,
-                reason: `FAGF-FS Block: Category '${transaction.category}' is strictly restricted.`,
-                mitigationRisk: mandates.blockedCategories.riskDisclosure,
-                severity: mandates.blockedCategories.severity,
-                triggeredMandates: [mandates.blockedCategories.id]
-            };
+        if (mandates.blockedCategories && mandates.blockedCategories.parameter) {
+            if (mandates.blockedCategories.parameter.includes(transaction.category)) {
+                return {
+                    allowed: false,
+                    requiresApproval: false,
+                    reason: `FAGF-FS Block: Category '${transaction.category}' is strictly restricted.`,
+                    mitigationRisk: mandates.blockedCategories.riskDisclosure,
+                    severity: mandates.blockedCategories.severity,
+                    triggeredMandates: [mandates.blockedCategories.id]
+                };
+            }
         }
 
         // 2. Authorization Mandates: New Merchant Check
-        // Risk: Phishing / Merchant Impersonation.
-        if (context.isNewMerchant && mandates.newMerchantAuth.parameter) {
+        if (mandates.newMerchantAuth && context.isNewMerchant && mandates.newMerchantAuth.parameter) {
             triggeredMandates.push(mandates.newMerchantAuth.id);
             return {
                 allowed: false,
@@ -44,9 +44,21 @@ export class GovernanceValidator {
             };
         }
 
-        // 3. Spending Mandates: Confirmation Threshold
-        // Risk: Large Unauthorized Financial Loss.
-        if (transaction.amount > mandates.confirmationThreshold.parameter) {
+        // 3. Spending Mandates: Hard Block Threshold
+        if (mandates.dailyAggregateLimit && transaction.amount > mandates.dailyAggregateLimit.parameter) {
+            triggeredMandates.push(mandates.dailyAggregateLimit.id);
+            return {
+                allowed: false,
+                requiresApproval: false,
+                reason: `FAGF-FS Block: Transaction amount $${transaction.amount} exceeds hard block limit ($${mandates.dailyAggregateLimit.parameter}).`,
+                mitigationRisk: mandates.dailyAggregateLimit.riskDisclosure,
+                severity: mandates.dailyAggregateLimit.severity,
+                triggeredMandates
+            };
+        }
+
+        // 4. Spending Mandates: Confirmation Threshold
+        if (mandates.confirmationThreshold && transaction.amount > mandates.confirmationThreshold.parameter) {
             triggeredMandates.push(mandates.confirmationThreshold.id);
             return {
                 allowed: false,
@@ -59,25 +71,24 @@ export class GovernanceValidator {
         }
 
         // 4. Velocity Mandates: Rate Limiting
-        // Risk: API Runaway / Autonomous Loops.
-        const oneHourAgo = Date.now() - 3600000;
-        const recentTxCount = history.filter(h => h.transaction.timestamp > oneHourAgo).length;
-        if (recentTxCount >= mandates.rateLimitPerHour.parameter) {
-            triggeredMandates.push(mandates.rateLimitPerHour.id);
-            return {
-                allowed: false,
-                requiresApproval: true,
-                reason: `FAGF-FS HITL: Velocity limit exceeded (${mandates.rateLimitPerHour.parameter} tx/hr).`,
-                mitigationRisk: mandates.rateLimitPerHour.riskDisclosure,
-                severity: mandates.rateLimitPerHour.severity,
-                triggeredMandates
-            };
+        if (mandates.rateLimitPerHour && history) {
+            const oneHourAgo = Date.now() - 3600000;
+            const recentTxCount = history.filter(h => h.transaction.timestamp > oneHourAgo).length;
+            if (recentTxCount >= mandates.rateLimitPerHour.parameter) {
+                triggeredMandates.push(mandates.rateLimitPerHour.id);
+                return {
+                    allowed: false,
+                    requiresApproval: true,
+                    reason: `FAGF-FS HITL: Velocity limit exceeded (${mandates.rateLimitPerHour.parameter} tx/hr).`,
+                    mitigationRisk: mandates.rateLimitPerHour.riskDisclosure,
+                    severity: mandates.rateLimitPerHour.severity,
+                    triggeredMandates
+                };
+            }
         }
 
         // 5. Velocity Mandates: Cooldown
-        // Risk: Botanical Exhaustion / Rapid Drainage.
-        if (history.length > 0) {
-            // Sort history by timestamp descending to get the latest
+        if (mandates.cooldownSeconds && history && history.length > 0) {
             const sortedHistory = [...history].sort((a, b) => b.transaction.timestamp - a.transaction.timestamp);
             const lastTx = sortedHistory[0];
             const secondsSinceLast = (Date.now() - lastTx.transaction.timestamp) / 1000;
@@ -95,17 +106,18 @@ export class GovernanceValidator {
         }
 
         // 6. Authorization Mandates: Payment Channel Filtering
-        // Risk: High-Risk / Untrusted Payment Channels.
-        if (!mandates.allowedMethods.parameter.includes(transaction.paymentMethod)) {
-            triggeredMandates.push(mandates.allowedMethods.id);
-            return {
-                allowed: false,
-                requiresApproval: true,
-                reason: `FAGF-FS HITL: Payment method '${transaction.paymentMethod}' is untrusted for autonomous use.`,
-                mitigationRisk: mandates.allowedMethods.riskDisclosure,
-                severity: mandates.allowedMethods.severity,
-                triggeredMandates
-            };
+        if (mandates.allowedMethods && mandates.allowedMethods.parameter) {
+            if (!mandates.allowedMethods.parameter.includes(transaction.paymentMethod)) {
+                triggeredMandates.push(mandates.allowedMethods.id);
+                return {
+                    allowed: false,
+                    requiresApproval: true,
+                    reason: `FAGF-FS HITL: Payment method '${transaction.paymentMethod}' is untrusted for autonomous use.`,
+                    mitigationRisk: mandates.allowedMethods.riskDisclosure,
+                    severity: mandates.allowedMethods.severity,
+                    triggeredMandates
+                };
+            }
         }
 
 
